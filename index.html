@@ -37,6 +37,14 @@
   }
   h1{ font-size:22px; margin:0 0 14px; }
 
+  /* pestañas superiores */
+  .tabs{ display:flex; gap:8px; margin-bottom:16px; }
+  .tabs button{
+    flex:1; padding:10px; border-radius:10px; border:1px solid #2c3140;
+    background:var(--card); color:var(--muted); font-weight:600; font-size:13px;
+  }
+  .tabs button.active{ background:var(--accent); color:white; border-color:var(--accent); }
+
   /* selector de mes */
   .month-nav{
     display:flex; align-items:center; justify-content:space-between;
@@ -61,6 +69,9 @@
   .summary .card .value{ font-size:15px; font-weight:700; word-break:break-all; }
   .summary .ingreso .value{ color:var(--ingreso); }
   .summary .gasto .value{ color:var(--gasto); }
+  .summary.cols-2{ grid-template-columns:1fr 1fr; }
+  .summary .me-deben .value{ color:var(--ingreso); }
+  .summary .yo-debo .value{ color:var(--gasto); }
 
   main{ padding:0 16px; }
 
@@ -92,6 +103,30 @@
     background:none; border:none; color:var(--muted); font-size:18px;
     margin-left:10px; padding:4px 8px;
   }
+
+  /* lista de pendientes (cobros/pagos) */
+  .pend{
+    background:var(--card); border-radius:14px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:8px;
+  }
+  .pend.paid{ opacity:.45; }
+  .pend .left{ display:flex; flex-direction:column; gap:2px; }
+  .pend .persona{ font-size:14px; font-weight:600; }
+  .pend .meta{ font-size:12px; color:var(--muted); }
+  .pend .amount{ font-size:15px; font-weight:700; }
+  .pend .amount.me_deben{ color:var(--ingreso); }
+  .pend .amount.yo_debo{ color:var(--gasto); }
+  .pend .actions{ display:flex; align-items:center; gap:6px; }
+  .pend .check{
+    background:none; border:1px solid #2c3140; color:var(--muted);
+    border-radius:50%; width:28px; height:28px; font-size:13px;
+  }
+  .pend .check.done{ background:var(--accent); border-color:var(--accent); color:white; }
+  .pend .del{
+    background:none; border:none; color:var(--muted); font-size:18px; padding:4px 8px;
+  }
+
   .empty{ color:var(--muted); font-size:13px; text-align:center; padding:20px 0; }
 
   /* botón flotante + */
@@ -122,6 +157,8 @@
   }
   .type-toggle button.active[data-type="gasto"]{ background:var(--gasto); color:white; border-color:var(--gasto); }
   .type-toggle button.active[data-type="ingreso"]{ background:var(--ingreso); color:white; border-color:var(--ingreso); }
+  .type-toggle button.active[data-ptype="yo_debo"]{ background:var(--gasto); color:white; border-color:var(--gasto); }
+  .type-toggle button.active[data-ptype="me_deben"]{ background:var(--ingreso); color:white; border-color:var(--ingreso); }
 
   label{ display:block; font-size:12px; color:var(--muted); margin:12px 0 6px; }
   input, select{
@@ -148,38 +185,68 @@
 
 <header>
   <h1>Mis Finanzas</h1>
-  <div class="month-nav">
-    <button id="prevMonth">‹</button>
-    <span id="monthLabel"></span>
-    <button id="nextMonth">›</button>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-view="movimientos">Movimientos</button>
+    <button class="tab-btn" data-view="pendientes">Pendientes</button>
   </div>
 
-  <div class="summary">
-    <div class="card ingreso">
-      <div class="label">Ingresos</div>
-      <div class="value" id="totalIngresos">$0</div>
+  <div id="viewMovHeader">
+    <div class="month-nav">
+      <button id="prevMonth">‹</button>
+      <span id="monthLabel"></span>
+      <button id="nextMonth">›</button>
     </div>
-    <div class="card gasto">
-      <div class="label">Gastos</div>
-      <div class="value" id="totalGastos">$0</div>
+
+    <div class="summary">
+      <div class="card ingreso">
+        <div class="label">Ingresos</div>
+        <div class="value" id="totalIngresos">$0</div>
+      </div>
+      <div class="card gasto">
+        <div class="label">Gastos</div>
+        <div class="value" id="totalGastos">$0</div>
+      </div>
+      <div class="card">
+        <div class="label">Balance</div>
+        <div class="value" id="totalBalance">$0</div>
+      </div>
     </div>
-    <div class="card">
-      <div class="label">Balance</div>
-      <div class="value" id="totalBalance">$0</div>
+  </div>
+
+  <div id="viewPendHeader" style="display:none">
+    <div class="summary cols-2">
+      <div class="card me-deben">
+        <div class="label">Me deben</div>
+        <div class="value" id="totalMeDeben">$0</div>
+      </div>
+      <div class="card yo-debo">
+        <div class="label">Yo debo</div>
+        <div class="value" id="totalYoDebo">$0</div>
+      </div>
     </div>
   </div>
 </header>
 
 <main>
-  <section>
-    <h2>Gastos por categoría</h2>
-    <div id="catBreakdown"></div>
-  </section>
+  <div id="viewMovMain">
+    <section>
+      <h2>Gastos por categoría</h2>
+      <div id="catBreakdown"></div>
+    </section>
 
-  <section>
-    <h2>Movimientos</h2>
-    <div id="movList"></div>
-  </section>
+    <section>
+      <h2>Movimientos</h2>
+      <div id="movList"></div>
+    </section>
+  </div>
+
+  <div id="viewPendMain" style="display:none">
+    <section>
+      <h2>Cobros y pagos pendientes</h2>
+      <div id="pendList"></div>
+    </section>
+  </div>
 </main>
 
 <button class="fab" id="openForm">+</button>
@@ -217,6 +284,39 @@
   </div>
 </div>
 
+<div class="overlay" id="overlayPend">
+  <div class="sheet">
+    <h3>Nuevo pendiente</h3>
+
+    <div class="type-toggle">
+      <button type="button" data-ptype="me_deben" class="active">Me deben</button>
+      <button type="button" data-ptype="yo_debo">Yo debo</button>
+    </div>
+
+    <label>Persona</label>
+    <input type="text" id="pPersona" placeholder="ej. Juan">
+
+    <label>Monto</label>
+    <input type="number" id="pAmount" inputmode="decimal" placeholder="0.00" step="0.01" min="0">
+
+    <div class="row2">
+      <div>
+        <label>Fecha</label>
+        <input type="date" id="pDate">
+      </div>
+      <div>
+        <label>Nota (opcional)</label>
+        <input type="text" id="pNote" placeholder="ej. cena del viernes">
+      </div>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn btn-secondary" id="cancelFormPend">Cancelar</button>
+      <button class="btn btn-primary" id="saveFormPend">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   <button id="exportBtn">Exportar respaldo</button>
   <button id="importBtn">Importar respaldo</button>
@@ -241,6 +341,7 @@ const CAT_COLORS = ['#5b8cff','#33d17a','#ffb020','#ff5c5c','#a855f7','#14b8a6',
    ESTADO — todo vive en un solo arreglo, guardado en localStorage
    ========================================================= */
 const STORAGE_KEY = 'mis-finanzas-movimientos';
+const STORAGE_KEY_PEND = 'mis-finanzas-pendientes';
 
 function loadMovements(){
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -249,10 +350,19 @@ function loadMovements(){
 function saveMovements(list){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
+function loadPendientes(){
+  const raw = localStorage.getItem(STORAGE_KEY_PEND);
+  return raw ? JSON.parse(raw) : [];
+}
+function savePendientes(list){
+  localStorage.setItem(STORAGE_KEY_PEND, JSON.stringify(list));
+}
 
 let movements = loadMovements();          // [{id, type, amount, category, date, note}]
+let pendientes = loadPendientes();        // [{id, type:'me_deben'|'yo_debo', persona, amount, date, note, pagado}]
 let currentMonth = new Date();            // mes que se está mostrando
 currentMonth.setDate(1);
+let currentView = 'movimientos';          // 'movimientos' | 'pendientes'
 
 /* =========================================================
    HELPERS
@@ -290,6 +400,7 @@ function render(){
 
   renderCategoryBreakdown(monthMovs, gastos);
   renderList(monthMovs);
+  renderPendientes();
 }
 
 function renderCategoryBreakdown(monthMovs, totalGastos){
@@ -361,6 +472,74 @@ function renderList(monthMovs){
   });
 }
 
+function renderPendientes(){
+  const meDeben = pendientes.filter(p => p.type==='me_deben' && !p.pagado).reduce((s,p)=>s+p.amount,0);
+  const yoDebo  = pendientes.filter(p => p.type==='yo_debo'  && !p.pagado).reduce((s,p)=>s+p.amount,0);
+  document.getElementById('totalMeDeben').textContent = fmtMoney(meDeben);
+  document.getElementById('totalYoDebo').textContent = fmtMoney(yoDebo);
+
+  const box = document.getElementById('pendList');
+  box.innerHTML = '';
+
+  if(pendientes.length === 0){
+    box.innerHTML = '<div class="empty">No tienes cobros ni pagos pendientes</div>';
+    return;
+  }
+
+  // los pendientes primero, los pagados al final
+  pendientes
+    .slice()
+    .sort((a,b) => (a.pagado - b.pagado) || b.date.localeCompare(a.date))
+    .forEach(p => {
+      const d = new Date(p.date + 'T00:00:00');
+      const dateStr = d.toLocaleDateString(LOCALE, { day:'numeric', month:'short' });
+      box.insertAdjacentHTML('beforeend', `
+        <div class="pend ${p.pagado ? 'paid' : ''}" data-id="${p.id}">
+          <div class="left">
+            <span class="persona">${p.persona}</span>
+            <span class="meta">${p.type==='me_deben' ? 'Me debe' : 'Le debo'} · ${dateStr}${p.note ? ' · ' + p.note : ''}</span>
+          </div>
+          <div class="actions">
+            <span class="amount ${p.type}">${fmtMoney(p.amount)}</span>
+            <button class="check ${p.pagado ? 'done' : ''}" data-check="${p.id}" title="Marcar como pagado">✓</button>
+            <button class="del" data-delpend="${p.id}">✕</button>
+          </div>
+        </div>
+      `);
+    });
+
+  box.querySelectorAll('[data-check]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const item = pendientes.find(p => p.id === btn.dataset.check);
+      item.pagado = !item.pagado;
+      savePendientes(pendientes);
+      renderPendientes();
+    });
+  });
+  box.querySelectorAll('[data-delpend]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      pendientes = pendientes.filter(p => p.id !== btn.dataset.delpend);
+      savePendientes(pendientes);
+      renderPendientes();
+    });
+  });
+}
+
+/* =========================================================
+   PESTAÑAS (Movimientos / Pendientes)
+   ========================================================= */
+function switchView(view){
+  currentView = view;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.getElementById('viewMovHeader').style.display  = view === 'movimientos' ? '' : 'none';
+  document.getElementById('viewMovMain').style.display    = view === 'movimientos' ? '' : 'none';
+  document.getElementById('viewPendHeader').style.display = view === 'pendientes' ? '' : 'none';
+  document.getElementById('viewPendMain').style.display   = view === 'pendientes' ? '' : 'none';
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
 /* =========================================================
    NAVEGACIÓN DE MES
    ========================================================= */
@@ -385,9 +564,9 @@ function fillCategories(){
     .map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
-document.querySelectorAll('.type-toggle button').forEach(btn=>{
+document.querySelectorAll('#overlay .type-toggle button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.type-toggle button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('#overlay .type-toggle button').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     currentType = btn.dataset.type;
     fillCategories();
@@ -395,6 +574,14 @@ document.querySelectorAll('.type-toggle button').forEach(btn=>{
 });
 
 document.getElementById('openForm').addEventListener('click', ()=>{
+  if(currentView === 'pendientes'){
+    document.getElementById('pAmount').value = '';
+    document.getElementById('pPersona').value = '';
+    document.getElementById('pNote').value = '';
+    document.getElementById('pDate').value = new Date().toISOString().slice(0,10);
+    overlayPend.classList.add('open');
+    return;
+  }
   document.getElementById('fAmount').value = '';
   document.getElementById('fNote').value = '';
   document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
@@ -406,6 +593,47 @@ document.getElementById('cancelForm').addEventListener('click', ()=>{
 });
 overlay.addEventListener('click', (e)=>{
   if(e.target === overlay) overlay.classList.remove('open');
+});
+
+/* ---- formulario de pendientes ---- */
+const overlayPend = document.getElementById('overlayPend');
+let currentPType = 'me_deben';
+
+document.querySelectorAll('#overlayPend .type-toggle button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#overlayPend .type-toggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPType = btn.dataset.ptype;
+  });
+});
+document.getElementById('cancelFormPend').addEventListener('click', ()=>{
+  overlayPend.classList.remove('open');
+});
+overlayPend.addEventListener('click', (e)=>{
+  if(e.target === overlayPend) overlayPend.classList.remove('open');
+});
+document.getElementById('saveFormPend').addEventListener('click', ()=>{
+  const amount = parseFloat(document.getElementById('pAmount').value);
+  const persona = document.getElementById('pPersona').value.trim();
+  const date = document.getElementById('pDate').value;
+
+  if(!persona){ alert('Escribe el nombre de la persona'); return; }
+  if(!amount || amount <= 0){ alert('Ingresa un monto válido'); return; }
+  if(!date){ alert('Elige una fecha'); return; }
+
+  pendientes.push({
+    id: uid(),
+    type: currentPType,
+    persona,
+    amount,
+    date,
+    note: document.getElementById('pNote').value.trim(),
+    pagado: false
+  });
+  savePendientes(pendientes);
+
+  overlayPend.classList.remove('open');
+  renderPendientes();
 });
 
 document.getElementById('saveForm').addEventListener('click', ()=>{
@@ -437,7 +665,8 @@ document.getElementById('saveForm').addEventListener('click', ()=>{
    RESPALDO (exportar / importar JSON)
    ========================================================= */
 document.getElementById('exportBtn').addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify(movements, null, 2)], {type:'application/json'});
+  const backup = { movements, pendientes };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -456,10 +685,15 @@ document.getElementById('importFile').addEventListener('change', (e)=>{
   reader.onload = () => {
     try{
       const data = JSON.parse(reader.result);
-      if(!Array.isArray(data)) throw new Error('formato inválido');
-      if(confirm(`Se importarán ${data.length} movimientos. ¿Reemplazar los datos actuales?`)){
-        movements = data;
+      // soporta el respaldo viejo (solo un arreglo de movimientos) y el nuevo ({movements, pendientes})
+      const newMovements = Array.isArray(data) ? data : data.movements;
+      const newPendientes = Array.isArray(data) ? [] : (data.pendientes || []);
+      if(!Array.isArray(newMovements)) throw new Error('formato inválido');
+      if(confirm(`Se importarán ${newMovements.length} movimientos y ${newPendientes.length} pendientes. ¿Reemplazar los datos actuales?`)){
+        movements = newMovements;
+        pendientes = newPendientes;
         saveMovements(movements);
+        savePendientes(pendientes);
         render();
       }
     }catch(err){
