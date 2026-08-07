@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<!-- Estas tres líneas hacen que, al "Agregar a pantalla de inicio" en el iPhone,
+     la app abra a pantalla completa, sin la barra de Safari. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mis Finanzas">
+<title>Mis Finanzas</title>
+<style>
+  /* ---------- 1. VARIABLES DE DISEÑO ----------
+     Cambiar estos valores cambia el look de toda la app. */
+  :root{
+    --bg:#0f1115;
+    --card:#181b22;
+    --card-2:#20242e;
+    --text:#eef1f6;
+    --muted:#8a90a2;
+    --ingreso:#33d17a;
+    --gasto:#ff5c5c;
+    --accent:#5b8cff;
+    --radius:16px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding-bottom:90px; /* espacio para el botón flotante */
+  }
+  header{
+    padding:20px 16px 8px;
+  }
+  h1{ font-size:22px; margin:0 0 14px; }
+
+  /* selector de mes */
+  .month-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .month-nav button{
+    background:var(--card); border:none; color:var(--text);
+    width:38px; height:38px; border-radius:50%; font-size:18px;
+  }
+  .month-nav span{ font-weight:600; text-transform:capitalize; }
+
+  /* tarjetas resumen */
+  .summary{
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+    margin-bottom:20px;
+  }
+  .summary .card{
+    background:var(--card); border-radius:var(--radius);
+    padding:12px 10px; text-align:center;
+  }
+  .summary .card .label{ font-size:11px; color:var(--muted); margin-bottom:6px; }
+  .summary .card .value{ font-size:15px; font-weight:700; word-break:break-all; }
+  .summary .ingreso .value{ color:var(--ingreso); }
+  .summary .gasto .value{ color:var(--gasto); }
+
+  main{ padding:0 16px; }
+
+  section{ margin-bottom:24px; }
+  section h2{ font-size:14px; color:var(--muted); margin:0 0 10px; font-weight:600; }
+
+  /* categorías con barra */
+  .cat-row{
+    display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px;
+  }
+  .cat-row .cat-name{ width:90px; flex-shrink:0; }
+  .cat-row .bar-bg{ flex:1; height:8px; background:var(--card); border-radius:4px; overflow:hidden; }
+  .cat-row .bar-fill{ height:100%; border-radius:4px; }
+  .cat-row .cat-amount{ width:80px; text-align:right; flex-shrink:0; }
+
+  /* lista de movimientos */
+  .mov{
+    background:var(--card); border-radius:14px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:8px;
+  }
+  .mov .left{ display:flex; flex-direction:column; gap:2px; }
+  .mov .cat{ font-size:14px; font-weight:600; }
+  .mov .meta{ font-size:12px; color:var(--muted); }
+  .mov .amount{ font-size:15px; font-weight:700; }
+  .mov .amount.ingreso{ color:var(--ingreso); }
+  .mov .amount.gasto{ color:var(--gasto); }
+  .mov .del{
+    background:none; border:none; color:var(--muted); font-size:18px;
+    margin-left:10px; padding:4px 8px;
+  }
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:20px 0; }
+
+  /* botón flotante + */
+  .fab{
+    position:fixed; right:20px; bottom:24px;
+    width:58px; height:58px; border-radius:50%;
+    background:var(--accent); color:white; font-size:30px; border:none;
+    box-shadow:0 6px 18px rgba(91,140,255,.45);
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* modal formulario */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:flex-end; z-index:10;
+  }
+  .overlay.open{ display:flex; }
+  .sheet{
+    background:var(--card-2); width:100%; border-radius:20px 20px 0 0;
+    padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height:88vh; overflow-y:auto;
+  }
+  .sheet h3{ margin:0 0 16px; }
+  .type-toggle{ display:flex; gap:8px; margin-bottom:14px; }
+  .type-toggle button{
+    flex:1; padding:10px; border-radius:10px; border:1px solid #2c3140;
+    background:var(--card); color:var(--muted); font-weight:600;
+  }
+  .type-toggle button.active[data-type="gasto"]{ background:var(--gasto); color:white; border-color:var(--gasto); }
+  .type-toggle button.active[data-type="ingreso"]{ background:var(--ingreso); color:white; border-color:var(--ingreso); }
+
+  label{ display:block; font-size:12px; color:var(--muted); margin:12px 0 6px; }
+  input, select{
+    width:100%; padding:12px; border-radius:10px; border:1px solid #2c3140;
+    background:var(--card); color:var(--text); font-size:16px;
+  }
+  .row2{ display:flex; gap:10px; }
+  .row2 > div{ flex:1; }
+  .sheet-actions{ display:flex; gap:10px; margin-top:20px; }
+  .btn{ padding:13px; border-radius:10px; border:none; font-weight:700; font-size:15px; flex:1; }
+  .btn-primary{ background:var(--accent); color:white; }
+  .btn-secondary{ background:var(--card); color:var(--muted); }
+
+  footer{
+    text-align:center; padding:10px 16px 30px; display:flex; gap:10px; justify-content:center;
+  }
+  footer button{
+    background:none; border:1px solid #2c3140; color:var(--muted);
+    padding:8px 14px; border-radius:20px; font-size:12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mis Finanzas</h1>
+  <div class="month-nav">
+    <button id="prevMonth">‹</button>
+    <span id="monthLabel"></span>
+    <button id="nextMonth">›</button>
+  </div>
+
+  <div class="summary">
+    <div class="card ingreso">
+      <div class="label">Ingresos</div>
+      <div class="value" id="totalIngresos">$0</div>
+    </div>
+    <div class="card gasto">
+      <div class="label">Gastos</div>
+      <div class="value" id="totalGastos">$0</div>
+    </div>
+    <div class="card">
+      <div class="label">Balance</div>
+      <div class="value" id="totalBalance">$0</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <h2>Gastos por categoría</h2>
+    <div id="catBreakdown"></div>
+  </section>
+
+  <section>
+    <h2>Movimientos</h2>
+    <div id="movList"></div>
+  </section>
+</main>
+
+<button class="fab" id="openForm">+</button>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3>Nuevo movimiento</h3>
+
+    <div class="type-toggle">
+      <button type="button" data-type="gasto" class="active">Gasto</button>
+      <button type="button" data-type="ingreso">Ingreso</button>
+    </div>
+
+    <label>Monto</label>
+    <input type="number" id="fAmount" inputmode="decimal" placeholder="0.00" step="0.01" min="0">
+
+    <label>Categoría</label>
+    <select id="fCategory"></select>
+
+    <div class="row2">
+      <div>
+        <label>Fecha</label>
+        <input type="date" id="fDate">
+      </div>
+      <div>
+        <label>Nota (opcional)</label>
+        <input type="text" id="fNote" placeholder="ej. supermercado">
+      </div>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn btn-secondary" id="cancelForm">Cancelar</button>
+      <button class="btn btn-primary" id="saveForm">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <button id="exportBtn">Exportar respaldo</button>
+  <button id="importBtn">Importar respaldo</button>
+  <input type="file" id="importFile" accept="application/json" style="display:none">
+</footer>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN — lo primero que quizás quieras personalizar
+   ========================================================= */
+const LOCALE = 'es-MX';     // cambia a 'es-ES', 'es-AR', etc. si prefieres otro formato
+const CURRENCY = 'MXN';     // cambia a 'USD', 'EUR', etc.
+
+const CATEGORIES = {
+  gasto: ['Comida', 'Transporte', 'Vivienda', 'Servicios', 'Salud', 'Entretenimiento', 'Compras', 'Otro'],
+  ingreso: ['Salario', 'Freelance', 'Inversiones', 'Regalo', 'Otro']
+};
+
+const CAT_COLORS = ['#5b8cff','#33d17a','#ffb020','#ff5c5c','#a855f7','#14b8a6','#f472b6','#94a3b8'];
+
+/* =========================================================
+   ESTADO — todo vive en un solo arreglo, guardado en localStorage
+   ========================================================= */
+const STORAGE_KEY = 'mis-finanzas-movimientos';
+
+function loadMovements(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+function saveMovements(list){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+let movements = loadMovements();          // [{id, type, amount, category, date, note}]
+let currentMonth = new Date();            // mes que se está mostrando
+currentMonth.setDate(1);
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+function fmtMoney(n){
+  return n.toLocaleString(LOCALE, { style:'currency', currency:CURRENCY, maximumFractionDigits:0 });
+}
+function monthKey(date){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+}
+function movementsOfMonth(){
+  const key = monthKey(currentMonth);
+  return movements.filter(m => m.date.startsWith(key));
+}
+function uid(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
+/* =========================================================
+   RENDER — vuelve a dibujar la pantalla con el estado actual
+   ========================================================= */
+function render(){
+  // Etiqueta del mes
+  document.getElementById('monthLabel').textContent =
+    currentMonth.toLocaleDateString(LOCALE, { month:'long', year:'numeric' });
+
+  const monthMovs = movementsOfMonth();
+
+  const ingresos = monthMovs.filter(m => m.type === 'ingreso').reduce((s,m)=>s+m.amount,0);
+  const gastos   = monthMovs.filter(m => m.type === 'gasto').reduce((s,m)=>s+m.amount,0);
+
+  document.getElementById('totalIngresos').textContent = fmtMoney(ingresos);
+  document.getElementById('totalGastos').textContent = fmtMoney(gastos);
+  document.getElementById('totalBalance').textContent = fmtMoney(ingresos - gastos);
+
+  renderCategoryBreakdown(monthMovs, gastos);
+  renderList(monthMovs);
+}
+
+function renderCategoryBreakdown(monthMovs, totalGastos){
+  const box = document.getElementById('catBreakdown');
+  box.innerHTML = '';
+
+  if(totalGastos === 0){
+    box.innerHTML = '<div class="empty">Sin gastos este mes</div>';
+    return;
+  }
+
+  // suma por categoría
+  const byCat = {};
+  monthMovs.filter(m=>m.type==='gasto').forEach(m=>{
+    byCat[m.category] = (byCat[m.category]||0) + m.amount;
+  });
+
+  Object.entries(byCat)
+    .sort((a,b)=>b[1]-a[1])
+    .forEach(([cat, amount], i)=>{
+      const pct = Math.round((amount/totalGastos)*100);
+      const color = CAT_COLORS[i % CAT_COLORS.length];
+      box.insertAdjacentHTML('beforeend', `
+        <div class="cat-row">
+          <div class="cat-name">${cat}</div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <div class="cat-amount">${fmtMoney(amount)}</div>
+        </div>
+      `);
+    });
+}
+
+function renderList(monthMovs){
+  const box = document.getElementById('movList');
+  box.innerHTML = '';
+
+  if(monthMovs.length === 0){
+    box.innerHTML = '<div class="empty">No hay movimientos este mes</div>';
+    return;
+  }
+
+  monthMovs
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .forEach(m => {
+      const d = new Date(m.date + 'T00:00:00');
+      const dateStr = d.toLocaleDateString(LOCALE, { day:'numeric', month:'short' });
+      box.insertAdjacentHTML('beforeend', `
+        <div class="mov" data-id="${m.id}">
+          <div class="left">
+            <span class="cat">${m.category}</span>
+            <span class="meta">${dateStr}${m.note ? ' · ' + m.note : ''}</span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <span class="amount ${m.type}">${m.type==='gasto' ? '-' : '+'}${fmtMoney(m.amount)}</span>
+            <button class="del" data-del="${m.id}">✕</button>
+          </div>
+        </div>
+      `);
+    });
+
+  // botones de borrar
+  box.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      movements = movements.filter(m => m.id !== btn.dataset.del);
+      saveMovements(movements);
+      render();
+    });
+  });
+}
+
+/* =========================================================
+   NAVEGACIÓN DE MES
+   ========================================================= */
+document.getElementById('prevMonth').addEventListener('click', ()=>{
+  currentMonth.setMonth(currentMonth.getMonth()-1);
+  render();
+});
+document.getElementById('nextMonth').addEventListener('click', ()=>{
+  currentMonth.setMonth(currentMonth.getMonth()+1);
+  render();
+});
+
+/* =========================================================
+   FORMULARIO (modal)
+   ========================================================= */
+const overlay = document.getElementById('overlay');
+const fCategory = document.getElementById('fCategory');
+let currentType = 'gasto';
+
+function fillCategories(){
+  fCategory.innerHTML = CATEGORIES[currentType]
+    .map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+document.querySelectorAll('.type-toggle button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.type-toggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+    fillCategories();
+  });
+});
+
+document.getElementById('openForm').addEventListener('click', ()=>{
+  document.getElementById('fAmount').value = '';
+  document.getElementById('fNote').value = '';
+  document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
+  fillCategories();
+  overlay.classList.add('open');
+});
+document.getElementById('cancelForm').addEventListener('click', ()=>{
+  overlay.classList.remove('open');
+});
+overlay.addEventListener('click', (e)=>{
+  if(e.target === overlay) overlay.classList.remove('open');
+});
+
+document.getElementById('saveForm').addEventListener('click', ()=>{
+  const amount = parseFloat(document.getElementById('fAmount').value);
+  const date = document.getElementById('fDate').value;
+
+  if(!amount || amount <= 0){ alert('Ingresa un monto válido'); return; }
+  if(!date){ alert('Elige una fecha'); return; }
+
+  movements.push({
+    id: uid(),
+    type: currentType,
+    amount,
+    category: fCategory.value,
+    date,
+    note: document.getElementById('fNote').value.trim()
+  });
+  saveMovements(movements);
+
+  // si el movimiento es de otro mes, saltamos a ese mes para verlo
+  currentMonth = new Date(date + 'T00:00:00');
+  currentMonth.setDate(1);
+
+  overlay.classList.remove('open');
+  render();
+});
+
+/* =========================================================
+   RESPALDO (exportar / importar JSON)
+   ========================================================= */
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(movements, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `finanzas-respaldo-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!Array.isArray(data)) throw new Error('formato inválido');
+      if(confirm(`Se importarán ${data.length} movimientos. ¿Reemplazar los datos actuales?`)){
+        movements = data;
+        saveMovements(movements);
+        render();
+      }
+    }catch(err){
+      alert('No se pudo leer el archivo de respaldo.');
+    }
+  };
+  reader.readAsText(file);
+});
+
+/* =========================================================
+   PRIMER DIBUJADO
+   ========================================================= */
+render();
+</script>
+</body>
+</html>
